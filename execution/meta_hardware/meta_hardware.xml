@@ -1,0 +1,37 @@
+<library path="meta_hardware">
+  <class name="meta_hardware/MetaRobotDjiMotorNetwork"
+    type="meta_hardware::MetaRobotDjiMotorNetwork"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      DJI motor network hardware interface.
+    </description>
+  </class>
+  <class name="meta_hardware/MetaRobotDmMotorNetwork"
+    type="meta_hardware::MetaRobotDmMotorNetwork"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      DM motor network hardware interface.
+    </description>
+  </class>
+  <class name="meta_hardware/MetaRobotMiMotorNetwork"
+    type="meta_hardware::MetaRobotMiMotorNetwork"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      MI motor network hardware interface.
+    </description>
+  </class>
+  <class name="meta_hardware/MetaRobotBrtEncoderNetwork"
+    type="meta_hardware::MetaRobotBrtEncoderNetwork"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      BRT encoder network hardware interface.
+    </description>
+  </class>
+  <class name="meta_hardware/MetaRobotIm1253cManager"
+    type="meta_hardware::MetaRobotIm1253cManager"
+    base_class_type="hardware_interface::SystemInterface">
+    <description>
+      IM1253C manager hardware interface.
+    </description>
+  </class>
+</library>
