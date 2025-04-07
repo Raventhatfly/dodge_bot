@@ -1,0 +1,3 @@
+[submodule "perception/rm_vision_ros2_hik_camera"]
+	path = perception/rm_vision_ros2_hik_camera
+	url = https://github.com/rm-vision-archive/rm_vision_ros2_hik_camera.git
