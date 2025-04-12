@@ -40,26 +40,26 @@ def generate_launch_description():
         'is_simulation:=', enable_simulation,
     ])
 
-    # Gazebo related launch
-    world_sdf = PathJoinSubstitution(
-        [FindPackageShare('metav_gazebo'), 'worlds', 'rmuc2024.sdf'])
-    bridge_config = PathJoinSubstitution(
-        [FindPackageShare('meta_bringup'), 'config', 'ros_gz_bridge.yaml'])
-    gazebo_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            [PathJoinSubstitution(
-                [FindPackageShare('metav_gazebo'), 'launch', 'meta_gazebo.launch.py'])],
-        ),
-        launch_arguments=[
-            ('world_sdf', world_sdf),
-            ('robot_name', 'standard_omni'),
-            ('bridge_config_file', bridge_config),
-            ('robot_x', '6.35'),
-            ('robot_y', '7.6'),
-            ('robot_z', '0.2'),
-        ],
-        condition=IfCondition(enable_simulation)
-    )
+    # # Gazebo related launch
+    # world_sdf = PathJoinSubstitution(
+    #     [FindPackageShare('metav_gazebo'), 'worlds', 'rmuc2024.sdf'])
+    # bridge_config = PathJoinSubstitution(
+    #     [FindPackageShare('meta_bringup'), 'config', 'ros_gz_bridge.yaml'])
+    # gazebo_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         [PathJoinSubstitution(
+    #             [FindPackageShare('metav_gazebo'), 'launch', 'meta_gazebo.launch.py'])],
+    #     ),
+    #     launch_arguments=[
+    #         ('world_sdf', world_sdf),
+    #         ('robot_name', 'standard_omni'),
+    #         ('bridge_config_file', bridge_config),
+    #         ('robot_x', '6.35'),
+    #         ('robot_y', '7.6'),
+    #         ('robot_z', '0.2'),
+    #     ],
+    #     condition=IfCondition(enable_simulation)
+    # )
 
     node_robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -74,7 +74,7 @@ def generate_launch_description():
     )
 
     robot_config = PathJoinSubstitution(
-        [FindPackageShare('meta_bringup'), 'config', 'standard_omni.yaml'])
+        [FindPackageShare('dodgebot_bringup'), 'config', 'dodgebot.yaml'])
     controller_manager = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -93,8 +93,7 @@ def generate_launch_description():
     # Order in this list is IMPORTANT
     load_controllers = [
         # load_controller('wheels_pid_controller'),
-        # load_controller('gimbal_controller'),
-        # load_controller('omni_chassis_controller'),
+        load_controller('gimbal_controller'),
         load_controller('shoot_controller')
     ]
 
@@ -107,7 +106,16 @@ def generate_launch_description():
     #     emulate_tty=True
     # )
 
-    dbus_vehicle = Node(
+    # dbus_vehicle = Node(
+    #     package='dodgebot_vehicle',
+    #     executable='dodgebot_vehicle_node',
+    #     name='dodgebot_vehicle',
+    #     output='both',
+    #     parameters=[robot_config],
+    #     emulate_tty=True
+    # )
+
+    dodgebot_vehicle = Node(
         package='dodgebot_vehicle',
         executable='dodgebot_vehicle_node',
         name='dodgebot_vehicle',
@@ -153,7 +161,7 @@ def generate_launch_description():
         # Launch Arguments
         *ARGUMENTS,
         # Launch Gazebo and ROS2 bridge and spawn robot in Gazebo (also start controller manager)
-        gazebo_launch,
+        # gazebo_launch,
         # Load robot state publisher
         node_robot_state_publisher,
         # Launch controller manager (if not in simulation)
@@ -163,7 +171,8 @@ def generate_launch_description():
         # Load controllers
         *register_sequential_loading(load_joint_state_broadcaster, *load_controllers),
         # dbus_container,
-        dbus_control,
-        dbus_vehicle,
+        # dbus_control,
+        # dbus_vehicle,
+        dodgebot_vehicle,
         ahrs_launch,
     ])
