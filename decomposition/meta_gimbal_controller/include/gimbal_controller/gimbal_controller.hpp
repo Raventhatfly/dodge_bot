@@ -55,7 +55,6 @@ class GimbalController : public controller_interface::ChainableControllerInterfa
     update_and_write_commands(const rclcpp::Time &time,
                               const rclcpp::Duration &period) override;
 
-    using ControllerFeedbackMsg = sensor_msgs::msg::Imu;
     using ControllerReferenceMsg = behavior_interface::msg::Aim;
     using ControllerModeSrvType = std_srvs::srv::SetBool;
     using ControllerStateMsg = control_msgs::msg::MultiDOFStateStamped;
@@ -67,16 +66,6 @@ class GimbalController : public controller_interface::ChainableControllerInterfa
     // Command subscribers
     rclcpp::Subscription<ControllerReferenceMsg>::SharedPtr ref_subscriber_ = nullptr;
     realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerReferenceMsg>> input_ref_;
-
-    // Feedback subscribers
-    rclcpp::Subscription<ControllerFeedbackMsg>::SharedPtr feedback_subscriber_ = nullptr;
-    realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerFeedbackMsg>>
-        input_feedback_;
-
-    std::shared_ptr<control_toolbox::PidROS> yaw_pos2vel_pid_;
-    std::shared_ptr<control_toolbox::PidROS> pitch_pos2vel_pid_;
-    std::shared_ptr<control_toolbox::PidROS> yaw_vel2eff_pid_;
-    std::shared_ptr<control_toolbox::PidROS> pitch_vel2eff_pid_;
 
     using ControllerStatePublisher =
         realtime_tools::RealtimePublisher<ControllerStateMsg>;
@@ -92,7 +81,6 @@ class GimbalController : public controller_interface::ChainableControllerInterfa
 
   private:
     void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
-    void feedback_callback(const std::shared_ptr<ControllerFeedbackMsg> msg);
 };
 
 } // namespace gimbal_controller
