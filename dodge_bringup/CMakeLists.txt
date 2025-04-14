@@ -30,4 +30,5 @@ ament_auto_package(
   launch
   meshes
   urdf
+  rviz
 )
