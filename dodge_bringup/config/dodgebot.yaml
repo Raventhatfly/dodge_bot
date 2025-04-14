@@ -1,0 +1,69 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 200 # Hz
+
+    gimbal_controller:
+      type: meta_gimbal_controller/GimbalController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    shoot_controller:
+      type: meta_shoot_controller/ShootController
+
+gimbal_controller:
+  ros__parameters:
+    yaw_gimbal_joint:
+      enable: true
+      name: yaw_gimbal_joint
+      limit: [-0.5,0.5]
+
+    pitch_gimbal_joint:
+      enable: true
+      name: pitch_gimbal_joint
+      limit: [-0.5, 0.5]
+
+    # imu_topic: /imu
+
+    # gains:
+    #   yaw_gimbal_joint_pos2vel: { p: 7.0, i: 0.0, d: 0.0 }
+    #   pitch_gimbal_joint_pos2vel: { p: 30.0, i: 0.0, d: 0.05 }
+    #   yaw_gimbal_joint_vel2eff:
+    #     { p: 5.0e-1, i: 2.5e-1, d: 0.0, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+    #   pitch_gimbal_joint_vel2eff:
+    #     { p: 1.0e-1, i: 2.0e-2, d: 0.0, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+
+shoot_controller:
+  ros__parameters:
+    friction_wheel:
+      velocity: -700.0
+      inverse: false
+
+    bullet_loader:
+      velocity: 0.1
+
+    gains:
+      friction_wheel1_joint_vel2eff:
+        { p: 6.0e-3, i: 0.0, d: 0.0, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+      friction_wheel2_joint_vel2eff:
+        { p: 6.0e-3, i: 0.0, d: 0.0, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+      bullet_loader_joint_vel2eff:
+        { p: 1.0e-1, i: 5.0e-1, d: 0.0e-2, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+        
+dbus_control_node:
+  ros__parameters:
+    dbus_port: "dbus_control"
+
+dodgebot_vehicle:
+  ros__parameters:
+    enable_ros2_control: true
+    aim_topic: "/gimbal_controller/reference"
+    shoot_topic: "/shoot_controller/reference"
+    control:
+      yaw_init: 0.0
+      pitch_init: 0.0
+      trans_vel: 2.5 # m/s
+      rot_vel: 3.0 # rad/s
+      stick_sens: 5.00 # rad/s
+      mouse_sens: 10.0
+      deadzone: 0.15 # percentage

@@ -3,8 +3,12 @@
 
     <xacro:arg name="is_simulation" default="true" />
 
-    <link name="base_footprint">
-    </link>
+    <link name="base_footprint"/>
+    <link name="base"></link>
+    <link name="neck_link" />
+    <link name="platform_link" />
+    <link name="fric_left_wheel" />
+    <link name="fric_right_wheel" />
 
     <!-- raise the robot a bit higher to prevent it from stucking in the ground -->
     <joint name="joint_base_to_footprint" type="fixed">
@@ -13,11 +17,29 @@
         <child link="base_link" />
     </joint>
 
-    <link name="base"></link>
+    <joint name="yaw_joint" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <parent link="base" />
+        <child link="neck_link" />
+    </joint>
 
-    <link name="gimbal_yaw" />
+    <joint name="pitch_joint" type="fixed">
+        <origin rpy="0 0 0" xyz="0 0 1" />
+        <parent link="neck_link" />
+        <child link="platform_link" />
+    </joint>
 
-    <link name="gimbal_pitch" />
+
+    <joint name="fric_wheel_left_joint" type="continuous">
+        <origin rpy="0 0 0" xyz="0.1 0.1 0" />
+        <parent link="platform_link" />
+        <child link="fric_left_wheel" />
+    </joint>
+    <joint name="fric_wheel_right_joint" type="continuous">
+        <origin rpy="0 0 0" xyz="0.1 -0.1 0" />
+        <parent link="base_footprint" />
+        <child link="frick_right_wheel" />
+    </joint>
 
 
     <xacro:macro name="shooter_transmission" params="prefix mechanical_reduction motor_id">
