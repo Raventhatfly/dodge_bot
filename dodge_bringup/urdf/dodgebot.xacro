@@ -5,8 +5,30 @@
 
     <link name="base_footprint"/>
     <link name="base"></link>
-    <link name="neck_link" />
-    <link name="platform_link" />
+    <link name="neck_link">
+        <visual>
+            <origin xyz="-0.1 -0.15 0.2" rpy="0 1.85 0" />
+            <geometry>
+                <mesh filename="file://$(find dodge_bringup)/meshes/6006yaw.stl"
+                    scale="0.001 0.001 0.001" />
+            </geometry>
+            <material name="silver">
+                <color rgba="0.700 0.700 0.700 1.000" />
+            </material>
+        </visual>
+    </link>
+    <link name="platform_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 1.85 0" />
+            <geometry>
+                <mesh filename="file://$(find dodge_bringup)/meshes/gimbal.stl"
+                    scale="0.001 0.001 0.001" />
+            </geometry>
+            <material name="silver">
+                <color rgba="0.700 0.700 0.700 1.000" />
+            </material>
+        </visual>
+    </link>
     <link name="fric_left_wheel" />
     <link name="fric_right_wheel" />
 
