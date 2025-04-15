@@ -19,7 +19,7 @@
     </link>
     <link name="platform_link">
         <visual>
-            <origin xyz="0 0 0" rpy="0 1.85 0" />
+            <origin xyz="-0.28 -0.15 0.11" rpy="0 1.85 0" />
             <geometry>
                 <mesh filename="file://$(find dodge_bringup)/meshes/gimbal.stl"
                     scale="0.001 0.001 0.001" />
@@ -39,14 +39,27 @@
         <child link="base" />
     </joint>
 
+    <!-- <joint name="yaw_joint" type="revolute">
+        <origin rpy="0 0 0" xyz="0 0 0" />
+        <limit effort="3." velocity="8.0" lower="-1.5708" upper="1.5708" />
+        <dynamics damping="0.0" friction="0.0" />
+        <safety_controller k_position="100" k_velocity="0.1"
+                soft_lower_limit="0"
+                soft_upper_limit="1000" />
+        <parent link="base" />
+        <child link="neck_link" />
+        <axis xyz="0 1 0" />
+    </joint> -->
+
     <joint name="yaw_joint" type="fixed">
         <origin rpy="0 0 0" xyz="0 0 0" />
         <parent link="base" />
         <child link="neck_link" />
+        <axis xyz="0 1 0" />
     </joint>
 
     <joint name="pitch_joint" type="fixed">
-        <origin rpy="0 0 0" xyz="0 0 1" />
+        <origin rpy="0 0 0" xyz="0 0 0.3" />
         <parent link="neck_link" />
         <child link="platform_link" />
     </joint>
