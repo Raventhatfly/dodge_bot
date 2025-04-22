@@ -13,7 +13,7 @@ import os
 import sys
 from ament_index_python.packages import get_package_share_directory
 sys.path.append(os.path.join(
-    get_package_share_directory('dodgebot_bringup'), 'launch'))
+    get_package_share_directory('dodge_bringup'), 'launch'))
 
 
 ARGUMENTS = [
@@ -35,7 +35,7 @@ def generate_launch_description():
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
         PathJoinSubstitution(
-            [FindPackageShare('metav_description'), 'urdf', 'dodgebot.xacro']),
+            [FindPackageShare('dodge_bringup'), 'urdf', 'dodgebot.xacro']),
         ' ',
         'is_simulation:=', enable_simulation,
     ])
@@ -74,7 +74,7 @@ def generate_launch_description():
     )
 
     robot_config = PathJoinSubstitution(
-        [FindPackageShare('dodgebot_bringup'), 'config', 'dodgebot.yaml'])
+        [FindPackageShare('dodge_bringup'), 'config', 'dodgebot.yaml'])
     controller_manager = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -96,15 +96,6 @@ def generate_launch_description():
         load_controller('gimbal_controller'),
         load_controller('shoot_controller')
     ]
-
-    # dbus_control = Node(
-    #     package='dbus_control',
-    #     executable='dbus_control_node',
-    #     name='dbus_control',
-    #     parameters=[robot_config],
-    #     output='both',
-    #     emulate_tty=True
-    # )
 
     # dbus_vehicle = Node(
     #     package='dodgebot_vehicle',
@@ -149,13 +140,13 @@ def generate_launch_description():
     #     emulate_tty=True
     # )
 
-    ahrs_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('fdilink_ahrs'),
-                         'launch/ahrs_driver.launch.py')
-        ),
-        condition=UnlessCondition(enable_simulation)
-    )
+    # ahrs_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         os.path.join(get_package_share_directory('fdilink_ahrs'),
+    #                      'launch/ahrs_driver.launch.py')
+    #     ),
+    #     condition=UnlessCondition(enable_simulation)
+    # )
 
     return LaunchDescription([
         # Launch Arguments
@@ -174,5 +165,5 @@ def generate_launch_description():
         # dbus_control,
         # dbus_vehicle,
         dodgebot_vehicle,
-        ahrs_launch,
+        # ahrs_launch,
     ])
