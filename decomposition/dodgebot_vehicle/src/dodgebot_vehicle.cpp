@@ -28,6 +28,9 @@ private:
     void timer_callback() {
         auto aim_msg = std::make_shared<behavior_interface::msg::Aim>();
         auto shoot_msg = std::make_shared<behavior_interface::msg::Shoot>();
+        shoot_msg->fric_state = true;
+        shoot_msg->feed_state = true;
+        shoot_msg->feed_speed = 1.0;
         aim_msg->yaw = yaw_;
         aim_msg->pitch = pitch_;
         aim_pub_->publish(*aim_msg);

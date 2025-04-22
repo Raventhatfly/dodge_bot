@@ -36,7 +36,7 @@ gimbal_controller:
 shoot_controller:
   ros__parameters:
     friction_wheel:
-      velocity: -700.0
+      velocity: 400.0
       inverse: false
 
     bullet_loader:
@@ -48,7 +48,7 @@ shoot_controller:
       friction_wheel2_joint_vel2eff:
         { p: 6.0e-3, i: 0.0, d: 0.0, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
       bullet_loader_joint_vel2eff:
-        { p: 1.0e-1, i: 5.0e-1, d: 0.0e-2, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
+        { p: 2.0e-1, i: 5.0e-1, d: 0.0e-2, i_clamp_max: 1.0, i_clamp_min: -1.0, antiwindup: true }
         
 dbus_control_node:
   ros__parameters:
