@@ -33,8 +33,8 @@ private:
         shoot_msg->feed_speed = 1.0;
         aim_msg->yaw = yaw_;
         aim_msg->pitch = pitch_;
-        aim_pub_->publish(*aim_msg);
-        shoot_pub_->publish(*shoot_msg);
+        // aim_pub_->publish(*aim_msg);
+        // shoot_pub_->publish(*shoot_msg);
     }
     double yaw_, pitch_;
     rclcpp::Publisher<behavior_interface::msg::Shoot>::SharedPtr shoot_pub_;
