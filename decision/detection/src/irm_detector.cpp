@@ -98,6 +98,10 @@ void IrmDetector::create_debug_publishers()
     visualized_img_pub_ = image_transport::create_publisher(
       node_.get(), "/image/visualized_image", rmw_qos_profile_sensor_data);
   }
+  if (enable_depth_) {
+    depth_img_pub_ = image_transport::create_publisher(
+      node_.get(), "/image/depth_image", rmw_qos_profile_sensor_data);
+  }
   if (enable_rviz_) {
     armor_marker_.ns = "armor";
     armor_marker_.action = visualization_msgs::msg::Marker::ADD;
@@ -141,6 +145,10 @@ void IrmDetector::declare_parameters()
   param_desc.additional_constraints = "Must be true or false";
   enable_rviz_ = node_->declare_parameter<bool>("rviz", false, param_desc);
   if (enable_debug_) enable_rviz_ = true;
+
+  param_desc.description = "Enable Depth";
+  param_desc.additional_constraints = "Must be true or false";
+  enable_depth_ = node_->declare_parameter<bool>("depth", true, param_desc);
 
   param_desc.description = "Input size of the YOLO model";
   param_desc.additional_constraints = "Must be a list of two integers";
@@ -248,7 +256,17 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
   }
 
   armors_pub_->publish(armors_msg);
-
+  if(enable_depth_){
+    if(camera_->get_depth_frame()){
+      cv::Mat depth_image = *camera_->get_depth_frame();
+      // std::cout << "We have depth"<< std::endl;
+      depth_img_pub_.publish(
+        cv_bridge::CvImage(header, sensor_msgs::image_encodings::TYPE_16UC1, depth_image)
+          .toImageMsg());
+    }
+    
+    
+  }
   if constexpr (ALLOW_DEBUG_AND_PROFILING) {
     if (enable_profiling_) {
       pnp_end_time = node_->now();

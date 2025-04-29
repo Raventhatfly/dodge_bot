@@ -2,6 +2,7 @@
 #include <condition_variable>
 #include <filesystem>
 #include <librealsense2/hpp/rs_pipeline.hpp>
+#include <opencv2/core/mat.hpp>
 #include <string>
 #include <thread>
 
@@ -38,6 +39,7 @@ public:
   };
   using CameraCallback = std::function<void (StampedImage &)>;
   Camera() = default;
+  virtual std::shared_ptr<cv::Mat> get_depth_frame(){return std::shared_ptr<cv::Mat>();};
   virtual ~Camera() = default;
 };
 
@@ -86,7 +88,7 @@ class RealsenseCamera : public Camera
 public:
   explicit RealsenseCamera(const Config & config, const CameraCallback & callback);
   void trigger_callback(CameraHandle hCamera, BYTE * pFrameBuffer, tSdkFrameHead * pFrameHead);
-  std::shared_ptr<cv::Mat> get_depth_frame();
+  std::shared_ptr<cv::Mat> get_depth_frame() override;
   ~RealsenseCamera() override;
 
 private:

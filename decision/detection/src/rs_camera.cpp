@@ -100,6 +100,7 @@ void RealsenseCamera::receive_thread()
         (void*)depth_frame.get_data(),
         cv::Mat::AUTO_STEP);
       depth_buffer_ = std::make_shared<cv::Mat>(depth.clone());
+      // std::cout << "depth_buffer" << depth_buffer_.get() << std::endl;  
     }
   }
 }

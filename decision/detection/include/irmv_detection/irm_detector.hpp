@@ -1,4 +1,5 @@
 #pragma once
+#include <image_transport/publisher.hpp>
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
@@ -46,6 +47,7 @@ private:
   // Parameters
   bool enable_debug_;      // This publishes visualized image and profiling data
   bool enable_profiling_;  // This publishes profiling data (enabled if enable_debug_ is true)
+  bool enable_depth_;      // This publishes depth image
   bool enable_rviz_;       // This publishes armor markers for visualization in Rviz
   int binary_threshold_;   // Binary threshold for thresholding the image during armor extraction
   int enemy_color_;
@@ -61,6 +63,7 @@ private:
   // Debug & profiling
   image_transport::Publisher visualized_img_pub_;  // Visualized image with bboxes and armors
   image_transport::Publisher binary_img_pub_;      // Binary image after thresholding
+  image_transport::Publisher depth_img_pub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr
     total_latency_pub_;  // Total latency from image fetch to PnP estimation
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr
