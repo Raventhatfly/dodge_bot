@@ -12,11 +12,8 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
 : config_(config), camera_callback_(callback)
 {
   // Configure and start RealSense pipeline
-  // rs_config_.enable_stream(RS2_STREAM_DEPTH,1280,720,RS2_FORMAT_Z16,30);
-  // rs_config_.enable_stream(RS2_STREAM_COLOR,1280,720,RS2_FORMAT_BGR8,30);
-  // rs_config_.enable_stream(RS2_STREAM_INFRARED, 1, 1280, 720, RS2_FORMAT_Y8, 30);
-  rs_config_.enable_stream(RS2_STREAM_COLOR);
-  rs_config_.enable_stream(RS2_STREAM_DEPTH);
+  rs_config_.enable_stream(RS2_STREAM_COLOR, 640, 480, RS2_FORMAT_RGB8, 60);
+  rs_config_.enable_stream(RS2_STREAM_DEPTH,640,480,RS2_FORMAT_Z16,60);
 
   try {
     pipe_.start(rs_config_);
@@ -50,6 +47,8 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
   }
   
   triple_buffer_ = std::make_unique<TripleBuffer<StampedImage>>(stamped_img_buf_);
+  // depth_buffer_ = std::make_shared<cv::Mat>(
+  //   cv::Size(depth_frame_width_, depth_frame_height_), CV_16UC1, depth_frame.get_data());
   receive_thread_ = std::jthread(&RealsenseCamera::receive_thread, this);
 }
 
@@ -76,11 +75,6 @@ void RealsenseCamera::receive_thread()
         (void*)color_frame.get_data(),
         cv::Mat::AUTO_STEP);
       
-      // std::cout << "Color frame width: " << color_frame_width_ << std::endl;    
-      // std::cout << "Color frame height: " << color_frame_height_ << std::endl;
-
-      // std::cout << "config frame width: " << depth_frame_width_ << std::endl;
-      // std::cout << "config frame height: " << depth_frame_height_ << std::endl;
       color.copyTo(stamped_image->image);
       stamped_image->time_stamp = start_time;
       triple_buffer_->producer_commit();
@@ -98,7 +92,21 @@ void RealsenseCamera::receive_thread()
         frame_count = 0;
       }
     }
+    if (depth_frame) {
+      // Convert to OpenCV format and copy to buffer
+      cv::Mat depth(
+        cv::Size(depth_frame_width_, depth_frame_height_),
+        CV_16UC1,
+        (void*)depth_frame.get_data(),
+        cv::Mat::AUTO_STEP);
+      depth_buffer_ = std::make_shared<cv::Mat>(depth.clone());
+    }
   }
+}
+
+std::shared_ptr<cv::Mat> RealsenseCamera::get_depth_frame()
+{
+  return depth_buffer_;
 }
 
 RealsenseCamera::~RealsenseCamera()

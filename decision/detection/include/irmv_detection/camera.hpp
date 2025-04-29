@@ -86,6 +86,7 @@ class RealsenseCamera : public Camera
 public:
   explicit RealsenseCamera(const Config & config, const CameraCallback & callback);
   void trigger_callback(CameraHandle hCamera, BYTE * pFrameBuffer, tSdkFrameHead * pFrameHead);
+  std::shared_ptr<cv::Mat> get_depth_frame();
   ~RealsenseCamera() override;
 
 private:
@@ -97,6 +98,7 @@ private:
   CameraHandle h_camera_;
   std::array<StampedImage, 3> stamped_img_buf_;
   std::unique_ptr<TripleBuffer<StampedImage>> triple_buffer_;
+  std::shared_ptr<cv::Mat> depth_buffer_;
   std::atomic<bool> shutdown_ = false;
   std::jthread receive_thread_;
   int color_frame_width_;
