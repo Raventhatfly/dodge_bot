@@ -4,3 +4,6 @@
 [submodule "perception/realsense-ros"]
 	path = perception/realsense-ros
 	url = https://github.com/IntelRealSense/realsense-ros.git
+[submodule "decision/rm_auto_aim"]
+	path = decision/rm_auto_aim
+	url = https://github.com/rm-vision-archive/rm_auto_aim.git
