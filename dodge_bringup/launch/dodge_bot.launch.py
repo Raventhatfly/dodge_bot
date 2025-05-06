@@ -97,14 +97,14 @@ def generate_launch_description():
         load_controller('shoot_controller')
     ]
 
-    # dbus_vehicle = Node(
-    #     package='dodgebot_vehicle',
-    #     executable='dodgebot_vehicle_node',
-    #     name='dodgebot_vehicle',
-    #     output='both',
-    #     parameters=[robot_config],
-    #     emulate_tty=True
-    # )
+    wfly_node = Node(
+        package='wfly_control',
+        executable='wfly_control_node',
+        name='wfly_control',
+        output='both',
+        parameters=[robot_config],
+        emulate_tty=True
+    )
 
     dodgebot_vehicle = Node(
         package='dodgebot_vehicle',
@@ -164,6 +164,7 @@ def generate_launch_description():
         # dbus_container,
         # dbus_control,
         # dbus_vehicle,
+        wfly_node,
         dodgebot_vehicle,
         # ahrs_launch,
     ])

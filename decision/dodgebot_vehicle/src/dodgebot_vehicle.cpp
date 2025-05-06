@@ -15,14 +15,17 @@ public:
         yaw_ = this->declare_parameter("control.yaw_init", 0.0);
         pitch_ = this->declare_parameter("control.pitch_init", 0.0);
         remote_enable_ = this->declare_parameter("control.remote_enable", true);
+        vision_enable_ = this->declare_parameter("control.vision_enable", false);
         feed_speed_ = this->declare_parameter("control.feed_speed", 1.0);
         std::string shoot_topic = this->declare_parameter("shoot_topic", "shoot");
         std::string aim_topic = this->declare_parameter("aim_topic", "aim");
         std::string remote_topic = this->declare_parameter("remote_topic", "wfly_control");
         aim_pub_ = this->create_publisher<behavior_interface::msg::Aim>(aim_topic, 10);
-        shoot_pub_ = this->create_publisher<behavior_interface::msg::Shoot>(shoot_topic, 10);
+        shoot_pub_ = this->create_publisher<behavior_interface::msg::Shoot>(shoot_topic, 30);
         remote_sub_ = this->create_subscription<operation_interface::msg::WflyControl>(
-            remote_topic, 10, std::bind(&DodgebotVehicle::remote_callback, this, std::placeholders::_1));
+            remote_topic, 30, std::bind(&DodgebotVehicle::remote_callback, this, std::placeholders::_1));
+        vision_sub_ = this->create_subscription<behavior_interface::msg::Aim>(
+            "vision", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(PUB_RATE), [this](){
                 timer_callback();
@@ -52,6 +55,7 @@ private:
             if(msg->sa == "up") {
                 fric_state_ = false;
                 feed_state_ = false;
+                vision_enable_ = true;
             }else if(msg->sb == "mid"){
                 fric_state_ = true;
                 feed_state_ = false;
@@ -62,17 +66,27 @@ private:
             
             // Yaw and pitch control
             if(msg->sa == "down"){
-                yaw_ += 0.01 * msg->ls_x;
-                pitch_ += 0.01 * msg->ls_y;
+                vision_enable_ = false;
+                yaw_ += 0.005 * msg->ls_y;
+                pitch_ += 0.005 * msg->ls_x;
             }  
         }      
     }
+
+    void vision_callback(const behavior_interface::msg::Aim::SharedPtr msg) {
+        if(vision_enable_){
+            yaw_ = msg->yaw;
+            pitch_ = msg->pitch;
+        }
+    }
+
     double yaw_, pitch_;
-    bool remote_enable_, fric_state_, feed_state_;
+    bool remote_enable_, vision_enable_, fric_state_, feed_state_;
     double feed_speed_;
     rclcpp::Publisher<behavior_interface::msg::Shoot>::SharedPtr shoot_pub_;
     rclcpp::Publisher<behavior_interface::msg::Aim>::SharedPtr aim_pub_;
     rclcpp::Subscription<operation_interface::msg::WflyControl>::SharedPtr remote_sub_;
+    rclcpp::Subscription<behavior_interface::msg::Aim>::SharedPtr vision_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
