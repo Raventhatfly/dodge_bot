@@ -182,9 +182,9 @@ std::vector<YoloEngine::bbox> YoloEngine::detect()
 void YoloEngine::preprocess()
 {
   // Rotate 180 degrees
-  nppiMirror_8u_C3IR_Ctx(
-    src_image_buffer_, src_image_size_.width * 3,
-    NppiSize{src_image_size_.width, src_image_size_.height}, NPP_BOTH_AXIS, npp_context_);
+  // nppiMirror_8u_C3IR_Ctx(
+  //   src_image_buffer_, src_image_size_.width * 3,
+  //   NppiSize{src_image_size_.width, src_image_size_.height}, NPP_BOTH_AXIS, npp_context_);
   // Resize to 640x640
   nppiResize_8u_C3R_Ctx(
     src_image_buffer_, src_image_size_.width * 3,
