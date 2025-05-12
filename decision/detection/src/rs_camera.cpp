@@ -3,6 +3,7 @@
 #include <librealsense2/h/rs_sensor.h>
 #include <librealsense2/hpp/rs_frame.hpp>
 #include <librealsense2/rs.hpp>
+#include <librealsense2/rsutil.h>
 #include <chrono>
 #include <fmt/format.h>
 
@@ -23,8 +24,15 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
 
   // Wait for the first frame to verify the configuration
   rs2::frameset frames = pipe_.wait_for_frames();
-  rs2::frame color_frame = frames.get_color_frame();
-  rs2::frame depth_frame = frames.get_depth_frame();
+  rs2::frame depth_frame;
+  rs2::frame color_frame; 
+  rs2_intrinsics intrinsics;
+  rs2::align align_to_color(RS2_STREAM_COLOR);
+  frames = align_to_color.process(frames);
+  depth_frame = frames.get_depth_frame(); // Get aligned depth
+  color_frame = frames.get_color_frame();
+  intrinsics = color_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+
   if (!depth_frame) {
     throw invalid_camera_error("Failed to get depth frame");
   }else{
@@ -64,6 +72,8 @@ void RealsenseCamera::receive_thread()
     
     // Wait for frames
     rs2::frameset frames = pipe_.wait_for_frames();
+    rs2::align align_to_color(RS2_STREAM_COLOR);
+    frames = align_to_color.process(frames);
     rs2::frame color_frame = frames.get_color_frame();
     rs2::frame depth_frame = frames.get_depth_frame();
     
