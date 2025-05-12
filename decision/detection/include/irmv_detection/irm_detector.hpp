@@ -78,6 +78,6 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_array_pub_;
 
   // Integrated Camera Driver
-  std::unique_ptr<Camera> camera_;
+  std::unique_ptr<RealsenseCamera> camera_;
 };
 }  // namespace irmv_detection

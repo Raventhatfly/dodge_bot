@@ -26,12 +26,11 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
   rs2::frameset frames = pipe_.wait_for_frames();
   rs2::frame depth_frame;
   rs2::frame color_frame; 
-  rs2_intrinsics intrinsics;
   rs2::align align_to_color(RS2_STREAM_COLOR);
   frames = align_to_color.process(frames);
   depth_frame = frames.get_depth_frame(); // Get aligned depth
   color_frame = frames.get_color_frame();
-  intrinsics = color_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+  intrinsics_ = color_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
 
   if (!depth_frame) {
     throw invalid_camera_error("Failed to get depth frame");
@@ -51,6 +50,7 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
   for (int i = 0; i < 3; i++) {
     stamped_img_buf_[i].image = cv::Mat(
       config_.image_size, CV_8UC3, config_.image_buffers[i]);
+    stamped_img_buf_[i].depth = rs2::frame();
     stamped_img_buf_[i].id = i;
   }
   
@@ -87,6 +87,12 @@ void RealsenseCamera::receive_thread()
       
       color.copyTo(stamped_image->image);
       stamped_image->time_stamp = start_time;
+      
+      if (depth_frame) {
+        stamped_image->depth = depth_frame;
+        // std::cout << "depth_buffer" << depth_buffer_.get() << std::endl;  
+      }
+
       triple_buffer_->producer_commit();
       
       // Process callback
@@ -102,22 +108,12 @@ void RealsenseCamera::receive_thread()
         frame_count = 0;
       }
     }
-    if (depth_frame) {
-      // Convert to OpenCV format and copy to buffer
-      cv::Mat depth(
-        cv::Size(depth_frame_width_, depth_frame_height_),
-        CV_16UC1,
-        (void*)depth_frame.get_data(),
-        cv::Mat::AUTO_STEP);
-      depth_buffer_ = std::make_shared<cv::Mat>(depth.clone());
-      // std::cout << "depth_buffer" << depth_buffer_.get() << std::endl;  
-    }
   }
 }
 
-std::shared_ptr<cv::Mat> RealsenseCamera::get_depth_frame()
+rs2_intrinsics RealsenseCamera::get_intrinsics()
 {
-  return depth_buffer_;
+  return intrinsics_;
 }
 
 RealsenseCamera::~RealsenseCamera()

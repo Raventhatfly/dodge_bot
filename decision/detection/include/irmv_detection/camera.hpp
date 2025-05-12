@@ -24,11 +24,13 @@ public:
     int saturation;
     int gamma;
     cv::Size image_size = cv::Size(0, 0);
+    cv::Size depth_size = cv::Size(0, 0);
     std::array<uint8_t *, 3> image_buffers;
   };
   struct StampedImage
   {
     cv::Mat image;
+    rs2::frame depth;
     std::chrono::time_point<std::chrono::system_clock> time_stamp;
     int id;
   };
@@ -39,7 +41,6 @@ public:
   };
   using CameraCallback = std::function<void (StampedImage &)>;
   Camera() = default;
-  virtual std::shared_ptr<cv::Mat> get_depth_frame(){return std::shared_ptr<cv::Mat>();};
   virtual ~Camera() = default;
 };
 
@@ -88,7 +89,7 @@ class RealsenseCamera : public Camera
 public:
   explicit RealsenseCamera(const Config & config, const CameraCallback & callback);
   void trigger_callback(CameraHandle hCamera, BYTE * pFrameBuffer, tSdkFrameHead * pFrameHead);
-  std::shared_ptr<cv::Mat> get_depth_frame() override;
+  rs2_intrinsics get_intrinsics();
   ~RealsenseCamera() override;
 
 private:
@@ -96,6 +97,7 @@ private:
   Config config_;
   rs2::config rs_config_;
   rs2::pipeline pipe_;
+  rs2_intrinsics intrinsics_;
   CameraCallback camera_callback_;
   CameraHandle h_camera_;
   std::array<StampedImage, 3> stamped_img_buf_;

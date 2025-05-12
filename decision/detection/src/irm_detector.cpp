@@ -12,6 +12,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/convert.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <librealsense2/rsutil.h>
 
 #include "irmv_detection/armor.hpp"
 #include "irmv_detection/irm_detector.hpp"
@@ -67,6 +68,7 @@ IrmDetector::IrmDetector(const rclcpp::NodeOptions & options)
   // Initialize camera
   Camera::Config camera_config = {
     .image_size = image_input_size_,
+    .depth_size = cv::Size(640, 480),
     .image_buffers = {
       yolo_engines_[0]->get_src_image_buffer(), yolo_engines_[1]->get_src_image_buffer(),
       yolo_engines_[2]->get_src_image_buffer()}};
@@ -193,9 +195,6 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
 
   std::vector<YoloEngine::bbox> bboxes = yolo_engines_[image.id]->detect();
 
-  // std::vector<Armor> armors = extract_armors(yolo_engines_[image.id]->get_rotated_image(), bboxes);
-  std::vector<Armor> armors;
-
   if (pnp_solver_ == nullptr) return;  // This could happen if camera_info topic is not received yet
 
   if constexpr (ALLOW_DEBUG_AND_PROFILING) {
@@ -215,58 +214,66 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     text_marker_.id = 0;
   }
 
-  for (const auto & armor : armors) {
-    cv::Mat rvec;
-    cv::Mat tvec;
-    if (!pnp_solver_->solvePnP(armor, rvec, tvec)) {
-      continue;
-    }
+  for (const auto & bbox : bboxes) {
+    float min_x = std::max(bbox.xyxy[0], 0.0f);
+    float min_y = std::max(bbox.xyxy[1], 0.0f);
+    float max_x = std::min(bbox.xyxy[2], static_cast<float>(image.image.cols));
+    float max_y = std::min(bbox.xyxy[3], static_cast<float>(image.image.rows));
 
-    auto_aim_interfaces::msg::Armor armor_msg;
+    if (min_x >= max_x || min_y >= max_y) continue;
 
-    // Fill in pose
-    armor_msg.pose.position.x = tvec.at<double>(0);
-    armor_msg.pose.position.y = tvec.at<double>(1);
-    armor_msg.pose.position.z = tvec.at<double>(2);
+    float point[3];
+    float pixel[2];
+    pixel[0] = (min_x + max_x) / 2;
+    pixel[1] = (min_y + max_y) / 2;
+    // float depth_val = image.depth.get_di
+    // rs2_deproject_pixel_to_point(point, camera_->get_intrinsics(), pixel, depth_val)
 
-    cv::Mat rot_mat;
-    cv::Rodrigues(rvec, rot_mat);
-    tf2::Matrix3x3 tf2_rot_mat(
-      rot_mat.at<double>(0, 0), rot_mat.at<double>(0, 1), rot_mat.at<double>(0, 2),
-      rot_mat.at<double>(1, 0), rot_mat.at<double>(1, 1), rot_mat.at<double>(1, 2),
-      rot_mat.at<double>(2, 0), rot_mat.at<double>(2, 1), rot_mat.at<double>(2, 2));
-    tf2::Quaternion tf2_quat;
-    tf2_rot_mat.getRotation(tf2_quat);
-    armor_msg.pose.orientation = tf2::toMsg(tf2_quat);
+    // auto_aim_interfaces::msg::Armor armor_msg;
 
-    // Fill in message
-    armor_msg.distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
-    armors_msg.armors.emplace_back(armor_msg);
+    // // Fill in pose
+    // armor_msg.pose.position.x = tvec.at<double>(0);
+    // armor_msg.pose.position.y = tvec.at<double>(1);
+    // armor_msg.pose.position.z = tvec.at<double>(2);
 
-    if (enable_rviz_) {
-      armor_marker_.id++;
-      armor_marker_.pose = armor_msg.pose;
-      armor_marker_.scale.y = armor.size == ArmorSize::SMALL ? 0.135 : 0.23;
-      text_marker_.id++;
-      text_marker_.pose.position = armor_msg.pose.position;
-      text_marker_.pose.position.y -= 0.1;
-      text_marker_.text = magic_enum::enum_name(armor.armor_class);
-      marker_array_.markers.push_back(armor_marker_);
-      marker_array_.markers.push_back(text_marker_);
-    }
+    // cv::Mat rot_mat;
+    // cv::Rodrigues(rvec, rot_mat);
+    // tf2::Matrix3x3 tf2_rot_mat(
+    //   rot_mat.at<double>(0, 0), rot_mat.at<double>(0, 1), rot_mat.at<double>(0, 2),
+    //   rot_mat.at<double>(1, 0), rot_mat.at<double>(1, 1), rot_mat.at<double>(1, 2),
+    //   rot_mat.at<double>(2, 0), rot_mat.at<double>(2, 1), rot_mat.at<double>(2, 2));
+    // tf2::Quaternion tf2_quat;
+    // tf2_rot_mat.getRotation(tf2_quat);
+    // armor_msg.pose.orientation = tf2::toMsg(tf2_quat);
+
+    // // Fill in message
+    // armor_msg.distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
+
+    // armors_msg.armors.emplace_back(armor_msg);
+
+    // if (enable_rviz_) {
+    //   armor_marker_.id++;
+    //   armor_marker_.pose = armor_msg.pose;
+    //   armor_marker_.scale.y = armor.size == ArmorSize::SMALL ? 0.135 : 0.23;
+    //   text_marker_.id++;
+    //   text_marker_.pose.position = armor_msg.pose.position;
+    //   text_marker_.pose.position.y -= 0.1;
+    //   text_marker_.text = magic_enum::enum_name(armor.armor_class);
+    //   marker_array_.markers.push_back(armor_marker_);
+    //   marker_array_.markers.push_back(text_marker_);
+    // }
   }
 
   armors_pub_->publish(armors_msg);
   if(enable_depth_){
-    if(camera_->get_depth_frame()){
-      cv::Mat depth_image = *camera_->get_depth_frame();
-      // std::cout << "We have depth"<< std::endl;
+      cv::Mat depth_image(
+          cv::Size(640, 480),
+          CV_16UC1,
+          (void*)image.depth.get_data(),
+          cv::Mat::AUTO_STEP);
       depth_img_pub_.publish(
         cv_bridge::CvImage(header, sensor_msgs::image_encodings::TYPE_16UC1, depth_image)
           .toImageMsg());
-    }
-    
-    
   }
   if constexpr (ALLOW_DEBUG_AND_PROFILING) {
     if (enable_profiling_) {

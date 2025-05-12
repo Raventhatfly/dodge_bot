@@ -135,10 +135,6 @@ YoloEngine::~YoloEngine()
   cudaFree(input_buffer_hwc_);
   cudaFree(input_buffer_);
   cudaFree(output_buffer_.output);
-  // cudaFree(output_buffer_.num_dets);
-  // cudaFree(output_buffer_.bboxes);
-  // cudaFree(output_buffer_.scores);
-  // cudaFree(output_buffer_.labels);
   cudaFree(transpose_buffer_);
   cudaFree(decode_buffer_);
   delete context_;
@@ -288,7 +284,7 @@ std::vector<YoloEngine::bbox> YoloEngine::parse_output(float scale_x, float scal
         bboxes.emplace_back(box);
       }
   }
-  delete output_data;
+  delete[] output_data;
   return bboxes;
 }
 
