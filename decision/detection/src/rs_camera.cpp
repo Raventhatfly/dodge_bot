@@ -25,7 +25,7 @@ RealsenseCamera::RealsenseCamera(const Config & config, const CameraCallback & c
   // Wait for the first frame to verify the configuration
   rs2::frameset frames = pipe_.wait_for_frames();
   rs2::frame depth_frame;
-  rs2::frame color_frame; 
+  rs2::frame color_frame;
   rs2::align align_to_color(RS2_STREAM_COLOR);
   frames = align_to_color.process(frames);
   depth_frame = frames.get_depth_frame(); // Get aligned depth

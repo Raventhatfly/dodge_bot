@@ -5,6 +5,7 @@
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <fmt/format.h>
+#include <librealsense2/hpp/rs_frame.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgproc.hpp>
@@ -145,7 +146,7 @@ void IrmDetector::declare_parameters()
 
   param_desc.description = "Enable Rviz visualization";
   param_desc.additional_constraints = "Must be true or false";
-  enable_rviz_ = node_->declare_parameter<bool>("rviz", false, param_desc);
+  enable_rviz_ = node_->declare_parameter<bool>("rviz", true, param_desc);
   if (enable_debug_) enable_rviz_ = true;
 
   param_desc.description = "Enable Depth";
@@ -226,43 +227,49 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     float pixel[2];
     pixel[0] = (min_x + max_x) / 2;
     pixel[1] = (min_y + max_y) / 2;
-    // float depth_val = image.depth.get_di
-    // rs2_deproject_pixel_to_point(point, camera_->get_intrinsics(), pixel, depth_val)
+    rs2::depth_frame depth_frame = image.depth.as<rs2::depth_frame>();
+    float depth_val = depth_frame.get_distance(pixel[0], pixel[1]);
 
-    // auto_aim_interfaces::msg::Armor armor_msg;
+    rs2_intrinsics intrinsics = camera_->get_intrinsics();
+    rs2_deproject_pixel_to_point(point, &intrinsics, pixel, depth_val);
 
-    // // Fill in pose
-    // armor_msg.pose.position.x = tvec.at<double>(0);
-    // armor_msg.pose.position.y = tvec.at<double>(1);
-    // armor_msg.pose.position.z = tvec.at<double>(2);
+    auto_aim_interfaces::msg::Armor armor_msg;
 
-    // cv::Mat rot_mat;
-    // cv::Rodrigues(rvec, rot_mat);
-    // tf2::Matrix3x3 tf2_rot_mat(
-    //   rot_mat.at<double>(0, 0), rot_mat.at<double>(0, 1), rot_mat.at<double>(0, 2),
-    //   rot_mat.at<double>(1, 0), rot_mat.at<double>(1, 1), rot_mat.at<double>(1, 2),
-    //   rot_mat.at<double>(2, 0), rot_mat.at<double>(2, 1), rot_mat.at<double>(2, 2));
-    // tf2::Quaternion tf2_quat;
+    // Fill in pose
+    armor_msg.pose.position.x = point[0];
+    armor_msg.pose.position.y = point[1];
+    armor_msg.pose.position.z = point[2];
+
+    tf2::Quaternion tf2_quat;
     // tf2_rot_mat.getRotation(tf2_quat);
-    // armor_msg.pose.orientation = tf2::toMsg(tf2_quat);
+    armor_msg.pose.orientation = tf2::toMsg(tf2_quat);
 
-    // // Fill in message
-    // armor_msg.distance_to_image_center = pnp_solver_->calculateDistanceToCenter(armor.center);
+    // Fill in message
+    armor_msg.distance_to_image_center = 0.0;
 
-    // armors_msg.armors.emplace_back(armor_msg);
+    armors_msg.armors.emplace_back(armor_msg);
 
-    // if (enable_rviz_) {
-    //   armor_marker_.id++;
-    //   armor_marker_.pose = armor_msg.pose;
-    //   armor_marker_.scale.y = armor.size == ArmorSize::SMALL ? 0.135 : 0.23;
-    //   text_marker_.id++;
-    //   text_marker_.pose.position = armor_msg.pose.position;
-    //   text_marker_.pose.position.y -= 0.1;
-    //   text_marker_.text = magic_enum::enum_name(armor.armor_class);
-    //   marker_array_.markers.push_back(armor_marker_);
-    //   marker_array_.markers.push_back(text_marker_);
-    // }
+    if (enable_rviz_) {
+      armor_marker_.id++;
+      armor_marker_.pose = armor_msg.pose;
+      armor_marker_.scale.y = 0.23;
+      text_marker_.id++;
+      text_marker_.pose.position = armor_msg.pose.position;
+      text_marker_.pose.position.y -= 0.1;
+      text_marker_.text = "PERSON";
+      marker_array_.markers.push_back(armor_marker_);
+      marker_array_.markers.push_back(text_marker_);
+    }
   }
+
+  int armor_i = 0;
+  std::cout << "===================" << std::endl;
+  for (auto & armor : armors_msg.armors) {
+    std::cout << "Armor " << armor_i << ": " << armor.pose.position.x << ", "
+              << armor.pose.position.y << ", " << armor.pose.position.z << std::endl;
+    armor_i++;
+  }
+  std::cout << "===================" << std::endl;
 
   armors_pub_->publish(armors_msg);
   if(enable_depth_){
