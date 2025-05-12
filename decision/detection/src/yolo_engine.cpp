@@ -1,6 +1,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <opencv2/core/types.hpp>
 #include <string>
 #include <vector>
 
@@ -9,6 +10,7 @@
 #include <npp.h>
 #include <opencv2/opencv.hpp>
 
+#include "irmv_detection/postprocess.h"
 #include "irmv_detection/magic_enum.hpp"
 #include "irmv_detection/trt_logger.hpp"
 #include "irmv_detection/yolo_engine.hpp"
@@ -61,7 +63,8 @@ YoloEngine::YoloEngine(
   cudaMallocManaged(
     std::bit_cast<void **>(&src_image_buffer_), src_image_size_.height * src_image_size_.width * 3);
   cudaMallocManaged(
-    std::bit_cast<void **>(&output_buffer_.output), get_dim_size(output_shape) * sizeof(int));
+    std::bit_cast<void **>(&output_buffer_.output), get_dim_size(output_shape) * sizeof(float));
+  // std::cout <<"Output shape is: "<< get_dim_size(output_shape) << std::endl; // 470400
   // cudaMallocManaged(
   //   std::bit_cast<void **>(&output_buffer_.bboxes), get_dim_size(bboxes_dims) * sizeof(float));
   // cudaMallocManaged(
@@ -74,6 +77,10 @@ YoloEngine::YoloEngine(
   cudaMalloc(std::bit_cast<void **>(&resized_image_buffer_), get_dim_size(input_dims));
   cudaMalloc(std::bit_cast<void **>(&input_buffer_hwc_), get_dim_size(input_dims) * sizeof(float));
   cudaMalloc(std::bit_cast<void **>(&input_buffer_), get_dim_size(input_dims) * sizeof(float));
+  // std::cout <<"Input shape is: "<< get_dim_size(input_dims) << std::endl; // Input Dim 640 * 480 * 4
+  
+  cudaMalloc(std::bit_cast<void **>(&transpose_buffer_), get_dim_size(output_shape) * sizeof(float));
+  cudaMalloc(std::bit_cast<void **>(&decode_buffer_), (1 + kMaxNumOutputBbox * kNumBoxElement) * sizeof(float));
 
   src_image_ =
     cv::Mat(cv::Size(src_image_size_.width, src_image_size_.height), CV_8UC3, src_image_buffer_);
@@ -132,6 +139,8 @@ YoloEngine::~YoloEngine()
   // cudaFree(output_buffer_.bboxes);
   // cudaFree(output_buffer_.scores);
   // cudaFree(output_buffer_.labels);
+  cudaFree(transpose_buffer_);
+  cudaFree(decode_buffer_);
   delete context_;
   delete engine_;
   delete runtime_;
@@ -202,15 +211,21 @@ void YoloEngine::preprocess()
     npp_context_);
 }
 
-std::vector<YoloEngine::bbox> YoloEngine::parse_output(float scale_x, float scale_y) const
+std::vector<YoloEngine::bbox> YoloEngine::parse_output(float scale_x, float scale_y)
 {
   std::vector<bbox> bboxes;
-  for(int i = 0; i < 5; i++){
+  // for(int i = 0; i < 5; i++){
     // for(int j = 0; j < 6; j++){
     //   std::cout << output_buffer_.output[i * 57 + j] << " ";
     // }
     // std::cout << std::endl;
-  }
+  // }
+  // for(unsigned int i = 0; i < 5; i++){
+  //   const float * bbox_ptr = output_buffer_.output + i * 57;
+  //   float score = bbox_ptr[4];
+  //   int32_t class_id = static
+
+  // }
   
   // int32_t num_dets = *output_buffer_.num_dets;
   // for (int i = 0; i < num_dets; i++) {
@@ -226,6 +241,54 @@ std::vector<YoloEngine::bbox> YoloEngine::parse_output(float scale_x, float scal
   //   b.class_id = magic_enum::enum_cast<ArmorClass>(class_id).value_or(ArmorClass::UNKNOWN);
   //   bboxes.emplace_back(b);
   // }
+
+  // for(int i = 0; i < 5; i++){
+  //   const float * bbox_ptr = output_buffer_.output[i];
+  //   float score = bbox_ptr[4];
+  //   int32_t class_id = static_cast<int32_t>(bbox_ptr[5]);
+  // }
+
+
+
+  // NMS Post Process
+  // transpose [56 8400] convert to [8400 56]
+  transpose((float*)output_buffer_.output, transpose_buffer_, 8400, 4 + kNumClass + kNumKpt * kKptDims, stream_);
+  // convert [8400 56] to [58001, ], 58001 = 1 + 1000 * (4bbox + cond + cls + keepflag + 51kpts)
+  int nk = kNumKpt * kKptDims;  // number of keypoints total, default 51
+  decode(transpose_buffer_, decode_buffer_, 8400, kNumClass, nk, kConfThresh, kMaxNumOutputBbox, kNumBoxElement, stream_);
+  // cuda nms
+  nms(decode_buffer_, kNmsThresh, kMaxNumOutputBbox, kNumBoxElement, stream_);
+  cudaStreamSynchronize(stream_);
+
+  float* output_data = new float[1 + kMaxNumOutputBbox * kNumBoxElement];
+  cudaMemcpyAsync(output_data, decode_buffer_, (1 + kMaxNumOutputBbox * kNumBoxElement) * sizeof(float), cudaMemcpyDeviceToHost, stream_);
+  int count = std::min((int)output_data[0], kMaxNumOutputBbox);
+  
+  for (int i = 0; i < count; i++){
+      int pos = 1 + i * kNumBoxElement;
+      int keepFlag = (int)output_data[pos + 6];
+      if (keepFlag == 1){
+        bbox box;
+        box.xyxy[0] = output_data[pos] * scale_x;
+        box.xyxy[1] = output_data[pos + 1] * scale_y;
+        box.xyxy[2] = output_data[pos + 2] * scale_x;
+        box.xyxy[3] = output_data[pos + 3] * scale_y;
+        box.score = output_data[pos + 4];
+        box.class_id = (int) output_data[pos + 5];
+           
+        for(int j = 0; j < 17; j++){
+          int kpt_pos = pos + 7 + j * kKptDims;
+          cv::Point3f point;
+          point.x = output_data[kpt_pos] * scale_x;
+          point.y = output_data[kpt_pos + 1] * scale_y;
+          point.z = output_data[kpt_pos + 2];
+          box.key_points.emplace_back(point);
+        }
+
+        bboxes.emplace_back(box);
+      }
+  }
+  delete output_data;
   return bboxes;
 }
 
@@ -239,16 +302,27 @@ void YoloEngine::visualize_bboxes(
   for (auto & bbox : bboxes) {
     cv::Point p1(bbox.xyxy[0], bbox.xyxy[1]);
     cv::Point p2(bbox.xyxy[2], bbox.xyxy[3]);
-    cv::Scalar color;
-    if (magic_enum::enum_name(bbox.class_id)[0] == 'B') {
-      color = cv::Scalar(0, 0, 255);
-    } else {
-      color = cv::Scalar(255, 0, 0);
-    }
+    cv::Scalar color(0,0,255);
+    // if (bbox.class_id[0] == 'B') {
+    //   color = cv::Scalar(0, 0, 255);
+    // } else {
+    //   color = cv::Scalar(255, 0, 0);
+    // }
     cv::rectangle(image, p1, p2, color, 2);
-    cv::putText(
-      image, std::string(magic_enum::enum_name(bbox.class_id)), p1, cv::FONT_HERSHEY_SIMPLEX, 1,
-      color, 2);
+    // cv::putText(
+    //   image, std::string(bbox.class_id), p1, cv::FONT_HERSHEY_SIMPLEX, 1,
+    //   color, 2);
+    for(int i = 0; i < 17; i++){
+      cv::Point3f point = bbox.key_points[i];
+      if(point.x > 0 && point.x < image.cols && point.y > 0 && point.y < image.rows){
+        cv::Scalar color(0, 255, 0);
+        // Draw key points
+        // cv::circle(image, cv::Point(point.x, point.y), 5, color, -1);
+        // Draw lines between key points
+        // cv::line(image, cv::Point(point.x, point.y), cv::Point(point.x + 10, point.y + 10), color, 2);
+        cv::circle(image, cv::Point(point.x, point.y), 5, color, -1);
+      }
+    }
   }
 }
 

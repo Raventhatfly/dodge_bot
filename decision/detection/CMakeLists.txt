@@ -31,6 +31,7 @@ ament_auto_add_library(irmv_detection SHARED
   src/camera.cpp
   src/mv_camera.cpp
   src/rs_camera.cpp
+  # src/postprocess.cu
 )
 ament_target_dependencies(irmv_detection
   rclcpp
@@ -46,6 +47,14 @@ ament_target_dependencies(irmv_detection
   visualization_msgs
   realsense2
 )
+
+cuda_add_library(yolo_nms SHARED
+  src/postprocess.cu
+)
+ament_target_dependencies(yolo_nms
+  OpenCV
+)
+
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
   target_link_directories(irmv_detection PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/mvsdk/lib/arm64
@@ -58,6 +67,7 @@ else ()
   message(FATAL_ERROR "Unsupported platform")
 endif()
 target_link_libraries(irmv_detection
+  yolo_nms
   nvinfer
   nvonnxparser
   nvinfer_plugin
@@ -69,12 +79,27 @@ target_link_libraries(irmv_detection
   fmt
   realsense2
 )
+
+target_link_libraries(yolo_nms
+  ${CUDA_LIBRARIES}
+  ${CUDA_npp_LIBRARY}
+  ${CUDA_nppc_LIBRARY}
+  ${CUDA_nppi_LIBRARY}
+)
+
 target_include_directories(irmv_detection PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${CUDA_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/mvsdk/include
 )
+target_include_directories(yolo_nms PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${CUDA_INCLUDE_DIRS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/mvsdk/include
+)
+
 rclcpp_components_register_node(irmv_detection 
   PLUGIN "irmv_detection::IrmDetector"
   EXECUTABLE irmv_detector

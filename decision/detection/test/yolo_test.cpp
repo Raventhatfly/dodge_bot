@@ -39,7 +39,7 @@ TEST(irmv_detection, yolo_engine_demo)
     std::cout << bbox.xyxy[0] << ", " << bbox.xyxy[1] << ", " << bbox.xyxy[2] << ", "
               << bbox.xyxy[3] << std::endl;
     std::cout << bbox.score << std::endl;
-    std::cout << magic_enum::enum_name(bbox.class_id) << std::endl;
+    // std::cout << magic_enum::enum_name(bbox.class_id) << std::endl;
   }
 
   cv::Mat visualized_image = yolo_engine.get_rotated_image().clone();

@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <opencv2/core/types.hpp>
+#include <opencv2/features2d.hpp>
 #include <string>
 
 #include <NvInferRuntime.h>
@@ -20,8 +22,8 @@ public:
   {
     std::array<float, 4> xyxy;
     float score;
-    ArmorClass class_id;
-
+    int class_id;
+    std::vector<cv::Point3f> key_points;
     bool operator==(const bbox & other) const = default;
   };
 
@@ -37,11 +39,15 @@ public:
 private:
   void load_engine_file(const std::string & engine_file_path);
   void preprocess();
-  std::vector<bbox> parse_output(float scale_x, float scale_y) const;
+  std::vector<bbox> parse_output(float scale_x, float scale_y);
 
   // OpenCV related
   cv::Mat src_image_;
   cv::Size src_image_size_;
+
+  // Yolo Output related
+
+  std::vector<std::vector<cv::Point3f>> keypoints_;
 
   // TensorRT and NPP related
   IRuntime * runtime_;
@@ -53,6 +59,8 @@ private:
   uint8_t * resized_image_buffer_;
   float * input_buffer_hwc_;
   float * input_buffer_;
+  float* transpose_buffer_;
+  float* decode_buffer_;
   struct
   {
     // int32_t * num_dets;
