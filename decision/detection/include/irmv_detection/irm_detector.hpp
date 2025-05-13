@@ -5,6 +5,9 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <auto_aim_interfaces/msg/armors.hpp>
+#include <auto_aim_interfaces/msg/target.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -42,6 +45,9 @@ private:
   std::array<std::unique_ptr<YoloEngine>, 3> yolo_engines_;
   std::unique_ptr<PnPSolver> pnp_solver_;
   rclcpp::Publisher<auto_aim_interfaces::msg::Armors>::SharedPtr armors_pub_;
+  rclcpp::Publisher<auto_aim_interfaces::msg::Target>::SharedPtr target_pub_;
+  std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+  std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
   rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_event_handle_;
 
   // Parameters

@@ -262,7 +262,11 @@ std::vector<YoloEngine::bbox> YoloEngine::parse_output(float scale_x, float scal
   
   for (int i = 0; i < count; i++){
       int pos = 1 + i * kNumBoxElement;
-      int keepFlag = (int)output_data[pos + 6];
+      // int keepFlag = (int)output_data[pos + 6];
+      int keepFlag = 0;
+      if(output_data[pos + 6] > 0.9){
+        keepFlag = 1;
+      }
       if (keepFlag == 1){
         bbox box;
         box.xyxy[0] = output_data[pos] * scale_x;

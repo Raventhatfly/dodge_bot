@@ -1,0 +1,2 @@
+bool armor_button
+bool mode_switch
