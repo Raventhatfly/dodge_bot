@@ -100,6 +100,10 @@ void DmMotorNetwork::rx_loop(std::stop_token stop_token) {
     while (!stop_token.stop_requested()) {
         try {
             auto can_msg = can_driver_->read(2000);
+            if (motor_id2motor_.find(can_msg.data[0] & 0x0F) == motor_id2motor_.end()) {
+                std::cerr << "Unknown DM motor ID: " << (can_msg.data[0] & 0x0F) << std::endl;
+                continue;
+            }
             const auto &motor = motor_id2motor_.at(can_msg.data[0] & 0x0F);
             motor->set_motor_feedback(can_msg);
         } catch (CanIOTimedOutException & /*e*/) {

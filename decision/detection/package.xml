@@ -20,6 +20,7 @@
   <depend>fmt</depend>
   <depend>camera_info_manager</depend>
   <depend>realsense2</depend>
+  <depend>vision_interface</depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

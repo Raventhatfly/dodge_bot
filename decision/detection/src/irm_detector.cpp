@@ -65,6 +65,9 @@ IrmDetector::IrmDetector(const rclcpp::NodeOptions & options)
 
   target_pub_ = node_->create_publisher<auto_aim_interfaces::msg::Target>(
     "/detector/target", rclcpp::SensorDataQoS());
+
+  auto_aim_pub_ = node_->create_publisher<vision_interface::msg::AutoAimVel>(
+    "auto_aim", 10);
   tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
   tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
@@ -221,6 +224,10 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     text_marker_.id = 0;
   }
 
+  float target_x = 0.0;
+  float target_y = 0.0;
+  float min_dist_to_image_center = 10000.0;
+
   for (const auto & bbox : bboxes) {
     float min_x = std::max(bbox.xyxy[0], 0.0f);
     float min_y = std::max(bbox.xyxy[1], 0.0f);
@@ -269,7 +276,14 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     armor_msg.pose.orientation = tf2::toMsg(tf2_quat);
 
     // Fill in message
-    armor_msg.distance_to_image_center = cv::norm<float>(cv::Point2f(pixel[0], pixel[1]));
+    armor_msg.distance_to_image_center = cv::norm<float>(cv::Point2f(pixel[0], pixel[1]) - cv::Point2f(
+      float(image.image.cols) / 2, float(image.image.rows) / 2));
+
+    if (armor_msg.distance_to_image_center < min_dist_to_image_center) {
+      min_dist_to_image_center = armor_msg.distance_to_image_center;
+      target_x = pixel[0];
+      target_y = pixel[1];
+    }
 
     armors_msg.armors.emplace_back(armor_msg);
 
@@ -304,12 +318,15 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
         target_msg.velocity.z = 0.0;
       }
     }
-    if (target_msg.position.x == 0.0 && target_msg.position.y == 0.0 &&
-        target_msg.position.z == 0.0) {
-      std::cout << "Target position is zero" << std::endl;
-    }
   } else {
     // std::cout << "Temporary failure to transform" << std::endl;
+  }
+
+  if (armors_msg.armors.size() > 0) {
+    vision_interface::msg::AutoAimVel auto_aim_msg;
+    auto_aim_msg.v_yaw = - (target_x - float(image.image.cols) / 2) / (float(image.image.cols) / 2) * 0.785 * 0.02;
+    auto_aim_msg.v_pitch = - (target_y - float(image.image.rows) / 2) / float(image.image.rows) * 2.0;
+    auto_aim_pub_->publish(auto_aim_msg);
   }
 
   // int armor_i = 0;

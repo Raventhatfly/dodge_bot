@@ -4,9 +4,9 @@
 #include <behavior_interface/msg/aim.hpp>
 #include <operation_interface/msg/wfly_control.hpp>
 #include <vision_interface/msg/auto_aim.hpp>
-#include <vision_interface/msg/detail/auto_aim__struct.hpp>
+#include <vision_interface/msg/auto_aim_vel.hpp>
 
-#define PUB_RATE 15 // ms
+#define PUB_RATE 10 // ms
 class DodgebotVehicle : public rclcpp::Node {
 public:
     DodgebotVehicle(const rclcpp::NodeOptions & options) : Node("dodgebot_vehicle"){
@@ -31,7 +31,9 @@ public:
         shoot_pub_ = this->create_publisher<behavior_interface::msg::Shoot>(shoot_topic, 30);
         remote_sub_ = this->create_subscription<operation_interface::msg::WflyControl>(
             remote_topic, 30, std::bind(&DodgebotVehicle::remote_callback, this, std::placeholders::_1));
-        vision_sub_ = this->create_subscription<vision_interface::msg::AutoAim>(
+        // vision_sub_ = this->create_subscription<vision_interface::msg::AutoAim>(
+        //     "auto_aim", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
+        vision_sub_ = this->create_subscription<vision_interface::msg::AutoAimVel>(
             "auto_aim", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(PUB_RATE), [this](){
@@ -91,11 +93,11 @@ private:
         }      
     }
 
-    void vision_callback(const vision_interface::msg::AutoAim::SharedPtr msg) {
-        std::cout << "Yaw: " << msg->yaw << " Pitch: " << msg->pitch << std::endl;
+    void vision_callback(const vision_interface::msg::AutoAimVel::SharedPtr msg) {
         if(vision_enable_){
-            yaw_ = msg->yaw;
-            pitch_ = msg->pitch;
+            // std::cout << "vision yaw: " << msg->v_yaw << ", pitch: " << msg->v_pitch << std::endl;
+            yaw_ = msg->v_yaw + yaw_;
+            pitch_ = msg->v_pitch * 0.01 + pitch_;
         }
     }
 
@@ -106,7 +108,7 @@ private:
     rclcpp::Publisher<behavior_interface::msg::Shoot>::SharedPtr shoot_pub_;
     rclcpp::Publisher<behavior_interface::msg::Aim>::SharedPtr aim_pub_;
     rclcpp::Subscription<operation_interface::msg::WflyControl>::SharedPtr remote_sub_;
-    rclcpp::Subscription<vision_interface::msg::AutoAim>::SharedPtr vision_sub_;
+    rclcpp::Subscription<vision_interface::msg::AutoAimVel>::SharedPtr vision_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 

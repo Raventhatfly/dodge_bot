@@ -46,6 +46,7 @@ ament_target_dependencies(irmv_detection
   camera_info_manager
   visualization_msgs
   realsense2
+  vision_interface
 )
 
 cuda_add_library(yolo_nms SHARED

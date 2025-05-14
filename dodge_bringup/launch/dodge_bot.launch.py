@@ -156,13 +156,13 @@ def generate_launch_description():
         emulate_tty=True
     )
 
-    pos_interpreter = Node(
-        package="solais_interpreter",
-        executable="solais_interpreter_node",
-        name="pos_interpreter",
-        output="both",
-        emulate_tty=True
-    )
+    # pos_interpreter = Node(
+    #     package="solais_interpreter",
+    #     executable="solais_interpreter_node",
+    #     name="pos_interpreter",
+    #     output="both",
+    #     emulate_tty=True
+    # )
 
     return LaunchDescription([
         # Launch Arguments
@@ -184,5 +184,5 @@ def generate_launch_description():
         dodgebot_vehicle,
         # ahrs_launch,
         irmv_detection,
-        pos_interpreter,
+        # pos_interpreter,
     ])
