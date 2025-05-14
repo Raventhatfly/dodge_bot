@@ -67,7 +67,7 @@ def generate_launch_description():
         parameters=[
             {'use_sim_time': enable_simulation,
              'robot_description': robot_description_content,
-             'publish_frequency': 100.0}
+             'publish_frequency': 500.0}
         ],
         output='both',
         emulate_tty=True

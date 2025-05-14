@@ -88,16 +88,15 @@ private:
             if(msg->sa == "down"){
                 vision_enable_ = false;
                 yaw_ += 0.005 * msg->ls_y;
-                pitch_ += 0.05 * msg->ls_x;
+                pitch_ += 0.02 * msg->ls_x;
             }  
         }      
     }
 
     void vision_callback(const vision_interface::msg::AutoAimVel::SharedPtr msg) {
         if(vision_enable_){
-            // std::cout << "vision yaw: " << msg->v_yaw << ", pitch: " << msg->v_pitch << std::endl;
-            yaw_ = msg->v_yaw + yaw_;
-            pitch_ = msg->v_pitch * 0.01 + pitch_;
+            yaw_ = msg->v_yaw;
+            pitch_ = pitch_ + 0.05 * msg->v_pitch;
         }
     }
 

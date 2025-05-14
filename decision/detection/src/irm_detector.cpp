@@ -11,8 +11,10 @@
 #include <opencv2/imgproc.hpp>
 #include <rcl/time.h>
 #include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.hpp>
 #include <tf2/convert.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <librealsense2/rsutil.h>
 
 #include "irmv_detection/armor.hpp"
@@ -300,46 +302,52 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     }
   }
 
-  auto_aim_interfaces::msg::Target target_msg;
-  target_msg.header = header;
-  target_msg.tracking = false;
-  float min_distance_to_image_center = 10000.0;
+  // auto_aim_interfaces::msg::Target target_msg;
+  // target_msg.header = header;
+  // target_msg.tracking = false;
+  // float min_distance_to_image_center = 10000.0;
+  // geometry_msgs::msg::PoseStamped ps;
+  // ps.header = header;
+  // if (tf2_buffer_->canTransform("base", ps.header.frame_id, ps.header.stamp) && armors_msg.armors.size() > 0) {
+  //   target_msg.tracking = true;
+  //   for (auto & armor : armors_msg.armors) {
+  //     if (armor.distance_to_image_center < min_distance_to_image_center) {
+  //       min_distance_to_image_center = armor.distance_to_image_center;
+  //       ps.pose = armor.pose;
+  //       target_msg.position = tf2_buffer_->transform(ps, "base").pose.position;
+  //       target_msg.velocity.x = 0.0;
+  //       target_msg.velocity.y = 0.0;
+  //       target_msg.velocity.z = 0.0;
+  //     }
+  //   }
+  // } else {
+  //   // std::cout << "Temporary failure to transform" << std::endl;
+  // }
+
   geometry_msgs::msg::PoseStamped ps;
   ps.header = header;
+  ps.header.frame_id = "camera_link";
   if (tf2_buffer_->canTransform("base", ps.header.frame_id, ps.header.stamp) && armors_msg.armors.size() > 0) {
-    target_msg.tracking = true;
-    for (auto & armor : armors_msg.armors) {
-      if (armor.distance_to_image_center < min_distance_to_image_center) {
-        min_distance_to_image_center = armor.distance_to_image_center;
-        ps.pose = armor.pose;
-        target_msg.position = tf2_buffer_->transform(ps, "base").pose.position;
-        target_msg.velocity.x = 0.0;
-        target_msg.velocity.y = 0.0;
-        target_msg.velocity.z = 0.0;
-      }
-    }
-  } else {
-    // std::cout << "Temporary failure to transform" << std::endl;
-  }
+    geometry_msgs::msg::TransformStamped trans = tf2_buffer_->lookupTransform("base", ps.header.frame_id, ps.header.stamp);
+    tf2::Quaternion quat;
+    tf2::fromMsg(trans.transform.rotation, quat);
+    tf2::Matrix3x3 m(quat);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    std::cout << "target_y:" << target_y << "image.rows / 2" << float(image.image.rows) / 2 << std::endl;
 
-  if (armors_msg.armors.size() > 0) {
     vision_interface::msg::AutoAimVel auto_aim_msg;
-    auto_aim_msg.v_yaw = - (target_x - float(image.image.cols) / 2) / (float(image.image.cols) / 2) * 0.785 * 0.02;
-    auto_aim_msg.v_pitch = - (target_y - float(image.image.rows) / 2) / float(image.image.rows) * 2.0;
+    float delta_yaw = - (target_x - float(image.image.cols) / 2) / (float(image.image.cols) / 2) * 0.785 * 0.2;
+    float delta_pitch = - (target_y - float(image.image.rows) / 2) / (float(image.image.rows) / 2) * 0.35;
+    auto_aim_msg.v_yaw = yaw + delta_yaw;
+    auto_aim_msg.v_pitch = delta_pitch;
     auto_aim_pub_->publish(auto_aim_msg);
+  } else {
+    std::cout << "Temporary failure to transform" << std::endl;
   }
-
-  // int armor_i = 0;
-  // std::cout << "===================" << std::endl;
-  // for (auto & armor : armors_msg.armors) {
-  //   std::cout << "Armor " << armor_i << ": " << armor.pose.position.x << ", "
-  //             << armor.pose.position.y << ", " << armor.pose.position.z << std::endl;
-  //   armor_i++;
-  // }
-  // std::cout << "===================" << std::endl;
 
   armors_pub_->publish(armors_msg);
-  target_pub_->publish(target_msg);
+  // target_pub_->publish(target_msg);
   if(enable_depth_){
       cv::Mat depth_image(
           cv::Size(640, 480),

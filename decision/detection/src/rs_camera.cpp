@@ -67,11 +67,11 @@ void RealsenseCamera::receive_thread()
   auto starting_time = chrono::system_clock::now();
 
   while (!shutdown_) {
-    auto start_time = chrono::system_clock::now();
     auto stamped_image = triple_buffer_->get_producer_buffer();
     
     // Wait for frames
     rs2::frameset frames = pipe_.wait_for_frames();
+    auto start_time = chrono::system_clock::now();
     rs2::align align_to_color(RS2_STREAM_COLOR);
     frames = align_to_color.process(frames);
     rs2::frame color_frame = frames.get_color_frame();
