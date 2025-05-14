@@ -143,7 +143,7 @@ void IrmDetector::declare_parameters()
 
   param_desc.description = "Enable debug mode";
   param_desc.additional_constraints = "Must be true or false";
-  enable_debug_ = node_->declare_parameter<bool>("debug", true, param_desc);
+  enable_debug_ = node_->declare_parameter<bool>("debug", false, param_desc);
 
   param_desc.description = "Enable profiling";
   param_desc.additional_constraints = "Must be true or false";
@@ -233,6 +233,25 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     float pixel[2];
     pixel[0] = (min_x + max_x) / 2;
     pixel[1] = (min_y + max_y) / 2;
+
+    // Iterate nose, eyes, ears
+    int visible_count = 0;
+    float point_x_sum = 0.0;
+    float point_y_sum = 0.0;
+    for(int i = 0; i < 5; i++){
+      if (bbox.key_points[i].x > 0 && bbox.key_points[i].x < image.image.cols &&
+          bbox.key_points[i].y > 0 && bbox.key_points[i].y < image.image.rows &&
+          bbox.key_points[i].z > 0.7) {
+        visible_count++;
+        point_x_sum += bbox.key_points[i].x;
+        point_y_sum += bbox.key_points[i].y;
+      }
+    }
+    if(visible_count > 0){
+      pixel[0] = point_x_sum / visible_count;
+      pixel[1] = point_y_sum / visible_count;
+    }
+
     rs2::depth_frame depth_frame = image.depth.as<rs2::depth_frame>();
     float depth_val = depth_frame.get_distance(pixel[0], pixel[1]);
 
@@ -269,22 +288,28 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
 
   auto_aim_interfaces::msg::Target target_msg;
   target_msg.header = header;
-  target_msg.tracking = true;
+  target_msg.tracking = false;
   float min_distance_to_image_center = 10000.0;
-  for (auto & armor : armors_msg.armors) {
-    if (armor.distance_to_image_center < min_distance_to_image_center) {
-      min_distance_to_image_center = armor.distance_to_image_center;
-      geometry_msgs::msg::PoseStamped ps;
-      ps.header = header;
-      ps.header.stamp = ps.header.stamp;
-      ps.pose = armor.pose;
-      if (tf2_buffer_->canTransform("base", ps.header.frame_id, ps.header.stamp)) {
+  geometry_msgs::msg::PoseStamped ps;
+  ps.header = header;
+  if (tf2_buffer_->canTransform("base", ps.header.frame_id, ps.header.stamp) && armors_msg.armors.size() > 0) {
+    target_msg.tracking = true;
+    for (auto & armor : armors_msg.armors) {
+      if (armor.distance_to_image_center < min_distance_to_image_center) {
+        min_distance_to_image_center = armor.distance_to_image_center;
+        ps.pose = armor.pose;
         target_msg.position = tf2_buffer_->transform(ps, "base").pose.position;
+        target_msg.velocity.x = 0.0;
+        target_msg.velocity.y = 0.0;
+        target_msg.velocity.z = 0.0;
       }
-      target_msg.velocity.x = 0.0;
-      target_msg.velocity.y = 0.0;
-      target_msg.velocity.z = 0.0;
     }
+    if (target_msg.position.x == 0.0 && target_msg.position.y == 0.0 &&
+        target_msg.position.z == 0.0) {
+      std::cout << "Target position is zero" << std::endl;
+    }
+  } else {
+    // std::cout << "Temporary failure to transform" << std::endl;
   }
 
   // int armor_i = 0;

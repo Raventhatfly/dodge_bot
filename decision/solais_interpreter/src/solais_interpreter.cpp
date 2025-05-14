@@ -130,7 +130,6 @@ void SolaisInterpreter::tx_msg(const auto_aim_interfaces::msg::Target::SharedPtr
     solver_->solve(
         target_predict_position.head(2).norm(), target_predict_position.z(),
         target_pitch);
-    target_pitch = -target_pitch;  // Right-handed system
     target_yaw = std::atan2(target_predict_position.y(), target_predict_position.x());
 
     hit_yaw = target_yaw;

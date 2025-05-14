@@ -84,6 +84,10 @@ void DjiMotorNetwork::rx_loop(std::stop_token stop_token) {
         try {
             can_frame can_msg = can_driver_->read(2000);
 
+            if (rx_id2motor_.find(can_msg.can_id) == rx_id2motor_.end()) {
+                std::cerr << "[WARN]---------------------Unknown CAN ID: " << can_msg.can_id << std::endl;
+                continue;
+            }
             const auto &motor = rx_id2motor_.at(can_msg.can_id);
 
             auto position_raw =

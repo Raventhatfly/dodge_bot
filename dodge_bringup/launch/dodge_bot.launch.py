@@ -148,6 +148,22 @@ def generate_launch_description():
     #     condition=UnlessCondition(enable_simulation)
     # )
 
+    irmv_detection = Node(
+        package="irmv_detection",
+        executable="irmv_detector",
+        name="irmv_detector",
+        output="both",
+        emulate_tty=True
+    )
+
+    pos_interpreter = Node(
+        package="solais_interpreter",
+        executable="solais_interpreter_node",
+        name="pos_interpreter",
+        output="both",
+        emulate_tty=True
+    )
+
     return LaunchDescription([
         # Launch Arguments
         *ARGUMENTS,
@@ -167,4 +183,6 @@ def generate_launch_description():
         wfly_node,
         dodgebot_vehicle,
         # ahrs_launch,
+        irmv_detection,
+        pos_interpreter,
     ])

@@ -312,9 +312,14 @@ void YoloEngine::visualize_bboxes(
     // cv::putText(
     //   image, std::string(bbox.class_id), p1, cv::FONT_HERSHEY_SIMPLEX, 1,
     //   color, 2);
+    int visible_count = 0;
+    float point_x_sum = 0.0;
+    float point_y_sum = 0.0;
+    float point_mean_x = 0.0;
+    float point_mean_y = 0.0;
     for(int i = 0; i < 17; i++){
       cv::Point3f point = bbox.key_points[i];
-      if(point.x > 0 && point.x < image.cols && point.y > 0 && point.y < image.rows){
+      if(point.x > 0 && point.x < image.cols && point.y > 0 && point.y < image.rows && point.z > 0.9){
         cv::Scalar color(0, 255, 0);
         // Draw key points
         // cv::circle(image, cv::Point(point.x, point.y), 5, color, -1);
@@ -322,6 +327,21 @@ void YoloEngine::visualize_bboxes(
         // cv::line(image, cv::Point(point.x, point.y), cv::Point(point.x + 10, point.y + 10), color, 2);
         cv::circle(image, cv::Point(point.x, point.y), 5, color, -1);
       }
+      if(i < 5){
+        if (bbox.key_points[i].x > 0 && bbox.key_points[i].x < image.cols &&
+            bbox.key_points[i].y > 0 && bbox.key_points[i].y < image.rows &&
+            bbox.key_points[i].z > 0.7) {
+          visible_count++;
+          point_x_sum += bbox.key_points[i].x;
+          point_y_sum += bbox.key_points[i].y;
+        }
+      }
+    }
+    if(visible_count > 0){
+      point_mean_x = point_x_sum / visible_count;
+      point_mean_y = point_y_sum / visible_count;
+      cv::Scalar color(255, 0, 0);
+      cv::circle(image, cv::Point(point_mean_x, point_mean_y), 5, color, -1);
     }
   }
 }
