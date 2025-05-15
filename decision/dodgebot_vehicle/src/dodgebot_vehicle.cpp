@@ -18,8 +18,8 @@ public:
         pitch_ = this->declare_parameter("control.pitch_init", 0.0);
         yaw_max_ = this->declare_parameter("control.yaw_max", 0.8);
         yaw_min_ = this->declare_parameter("control.yaw_min", -0.9 );
-        pitch_max_ = this->declare_parameter("control.pitch_max", 0.5);
-        pitch_min_ = this->declare_parameter("control.pitch_min", -0.2);
+        pitch_max_ = this->declare_parameter("control.pitch_max", 0.4);
+        pitch_min_ = this->declare_parameter("control.pitch_min", -0.3);
         remote_enable_ = this->declare_parameter("control.remote_enable", true);
         // vision_enable_ = this->declare_parameter("control.vision_enable", false);
         vision_enable_ = false;
@@ -87,7 +87,7 @@ private:
             // Yaw and pitch control
             if(msg->sa == "down"){
                 vision_enable_ = false;
-                yaw_ += 0.005 * msg->ls_y;
+                yaw_ += 0.01 * msg->ls_y;
                 pitch_ += 0.02 * msg->ls_x;
             }  
         }      
