@@ -26,11 +26,10 @@ class IoControl(Node):
         # GPIO.add_event_detect(button_pin, GPIO.FALLING, callback=blink, bouncetime=10, polltime=0.2)
         while True:
             if GPIO.input(button_pin) == GPIO.LOW:
-                self.io_msg.armor_button = False
-                print("Button Low")
+                self.io_msg.armor_button = True
+                time.sleep(0.5)
             else:
-                self.io_msg.armor_button = True   
-                print("Button High")
+                self.io_msg.armor_button = False   
 
 def main(args=None):
 
