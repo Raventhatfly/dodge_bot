@@ -1,14 +1,22 @@
+#include <rclcpp/logger.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include <behavior_interface/msg/shoot.hpp>
 #include <behavior_interface/msg/aim.hpp>
 #include <operation_interface/msg/wfly_control.hpp>
+#include <operation_interface/msg/io_info.hpp>
 #include <vision_interface/msg/auto_aim.hpp>
 #include <vision_interface/msg/auto_aim_vel.hpp>
 
 #define PUB_RATE 10 // ms
 class DodgebotVehicle : public rclcpp::Node {
 public:
+    enum GameState {
+        INIT,
+        EASY,
+        HARD
+    };
+
     DodgebotVehicle(const rclcpp::NodeOptions & options) : Node("dodgebot_vehicle"){
         // double max_vel = this->declare_parameter("control.trans_vel", 2.0);
         // double max_omega = this->declare_parameter("control.rot_vel", 3.0);
@@ -20,13 +28,17 @@ public:
         yaw_min_ = this->declare_parameter("control.yaw_min", -0.9 );
         pitch_max_ = this->declare_parameter("control.pitch_max", 0.4);
         pitch_min_ = this->declare_parameter("control.pitch_min", -0.3);
-        remote_enable_ = this->declare_parameter("control.remote_enable", true);
+        // remote_enable_ = this->declare_parameter("control.remote_enable", true);
         // vision_enable_ = this->declare_parameter("control.vision_enable", false);
         vision_enable_ = false;
         feed_speed_ = this->declare_parameter("control.feed_speed", 1.0);
         std::string shoot_topic = this->declare_parameter("shoot_topic", "shoot");
         std::string aim_topic = this->declare_parameter("aim_topic", "aim");
         std::string remote_topic = this->declare_parameter("remote_topic", "wfly_control");
+
+        // Game Logic Parameters
+        max_hit_ = this->declare_parameter("max_hit", 3);
+
         aim_pub_ = this->create_publisher<behavior_interface::msg::Aim>(aim_topic, 10);
         shoot_pub_ = this->create_publisher<behavior_interface::msg::Shoot>(shoot_topic, 30);
         remote_sub_ = this->create_subscription<operation_interface::msg::WflyControl>(
@@ -35,6 +47,8 @@ public:
         //     "auto_aim", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
         vision_sub_ = this->create_subscription<vision_interface::msg::AutoAimVel>(
             "auto_aim", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
+        io_sub_ = this->create_subscription<operation_interface::msg::IoInfo>(
+            "io_info", 10, std::bind(&DodgebotVehicle::io_callback, this, std::placeholders::_1));
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(PUB_RATE), [this](){
                 timer_callback();
@@ -42,6 +56,11 @@ public:
         
         fric_state_ = false;
         feed_state_ = false;
+
+
+        times_hit_ = 0;
+        prev_armor_button_ = false;
+        dodgebot_alive_ = true;
 
         RCLCPP_INFO(this->get_logger(), "Dodgebot initialized.");
     }
@@ -63,33 +82,71 @@ private:
     }
 
     void remote_callback(const operation_interface::msg::WflyControl::SharedPtr msg) {
-        if(remote_enable_){
-            // Shooter control
-            if(msg->sd == "up"){
-                vision_enable_ = false;
-            }else{
+        if(msg->sa == "down") robot_enable_ = true; else robot_enable_ = false;
+        if(robot_enable_){
+            if(msg->sd == "down"){
+                remote_enable_ = false;
                 vision_enable_ = true;
-                return;
+            }else{
+                remote_enable_ = true;
+                vision_enable_ = false;
             }
+        }else{
+            remote_enable_ = false;
+            vision_enable_ = false;
+        }
+        
 
-            // Shooter control
-            if(msg->sa == "up") {
+        // Read Game State
+        if (msg->sc == "up") {
+            game_state_ = INIT;
+        } else if (msg->sc == "mid") {
+            game_state_ = EASY;
+        } else if (msg->sc == "down") {
+            game_state_ = HARD;
+        } else {
+            game_state_ = INIT;
+        }
+
+        if(robot_enable_){
+            // Remote Shooter control
+            if(!remote_enable_ && !vision_enable_){
                 fric_state_ = false;
                 feed_state_ = false;
-            }else if(msg->sb == "mid"){
-                fric_state_ = true;
-                feed_state_ = false;
-            }else if(msg->sb == "down"){
-                fric_state_ = true;
-                feed_state_ = true;
+            }
+            if(remote_enable_){
+                if(msg->sb == "up") {
+                    fric_state_ = false;
+                    feed_state_ = false;
+                }else if(msg->sb == "mid"){
+                    fric_state_ = true;
+                    feed_state_ = false;
+                }else if(msg->sb == "down"){
+                    fric_state_ = true;
+                    feed_state_ = true;
+                }
+            }else{
+                if(msg->sa == "up") {
+                    fric_state_ = false;
+                    feed_state_ = false;
+                }else if(msg->sb == "mid"){
+                    fric_state_ = true;
+                    feed_state_ = false;
+                }else if(msg->sb == "down"){
+                    fric_state_ = true;
+                    feed_state_ = true;
+                }
             }
             
-            // Yaw and pitch control
-            if(msg->sa == "down"){
+            // Remote Yaw and pitch control
+            if(remote_enable_){
                 vision_enable_ = false;
-                yaw_ += 0.01 * msg->ls_y;
-                pitch_ += 0.02 * msg->ls_x;
+                yaw_ += 0.01 * msg->rs_y * 1.4; // 1.4 Requested by Kaiwang
+                if(msg->ls_x > 0.01 || msg->ls_x < -0.01)  pitch_ -= 0.02 * msg->ls_x;
             }  
+        }else{ // safe mode
+            fric_state_ = false;
+            feed_state_ = false;
         }      
     }
 
@@ -100,14 +157,32 @@ private:
         }
     }
 
+    void io_callback(const operation_interface::msg::IoInfo::SharedPtr msg) {
+        if(msg->armor_button && !prev_armor_button_){
+            times_hit_++;
+            if (times_hit_ >= max_hit_){
+                dodgebot_alive_ = false;
+                times_hit_ = 0;
+            }
+        }
+        prev_armor_button_ = msg->armor_button;
+    }
+
     double yaw_, pitch_;
     double yaw_max_, yaw_min_, pitch_max_, pitch_min_;
-    bool remote_enable_, vision_enable_, fric_state_, feed_state_;
+    bool robot_enable_, remote_enable_, vision_enable_, fric_state_, feed_state_;
+    GameState game_state_;
     double feed_speed_;
+    int times_hit_; bool prev_armor_button_;
+    // Internal state variables
+    bool dodgebot_alive_;
+    int max_hit_;
+
     rclcpp::Publisher<behavior_interface::msg::Shoot>::SharedPtr shoot_pub_;
     rclcpp::Publisher<behavior_interface::msg::Aim>::SharedPtr aim_pub_;
     rclcpp::Subscription<operation_interface::msg::WflyControl>::SharedPtr remote_sub_;
     rclcpp::Subscription<vision_interface::msg::AutoAimVel>::SharedPtr vision_sub_;
+    rclcpp::Subscription<operation_interface::msg::IoInfo>::SharedPtr io_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
 };
 
