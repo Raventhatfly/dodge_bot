@@ -343,7 +343,7 @@ void IrmDetector::message_callback(Camera::StampedImage & image)
     auto_aim_msg.v_pitch = delta_pitch;
     auto_aim_pub_->publish(auto_aim_msg);
   } else {
-    std::cout << "Temporary failure to transform" << std::endl;
+    // std::cout << "Temporary failure to transform" << std::endl;
   }
 
   armors_pub_->publish(armors_msg);

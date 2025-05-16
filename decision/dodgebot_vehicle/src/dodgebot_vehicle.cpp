@@ -14,7 +14,8 @@ public:
     enum GameState {
         INIT,
         EASY,
-        HARD
+        HARD,
+        DEAD
     };
 
     DodgebotVehicle(const rclcpp::NodeOptions & options) : Node("dodgebot_vehicle"){
@@ -22,8 +23,10 @@ public:
         // double max_omega = this->declare_parameter("control.rot_vel", 3.0);
         // double aim_sens = this->declare_parameter("control.stick_sens", 1.57);
         // double deadzone = this->declare_parameter("control.deadzone", 0.05);
-        yaw_ = this->declare_parameter("control.yaw_init", 0.0);
-        pitch_ = this->declare_parameter("control.pitch_init", 0.0);
+        yaw_init_ = this->declare_parameter("control.yaw_init", 0.0);
+        pitch_init_ = this->declare_parameter("control.pitch_init", 0.0);
+        yaw_ = yaw_init_;
+        pitch_ = pitch_init_;
         yaw_max_ = this->declare_parameter("control.yaw_max", 0.8);
         yaw_min_ = this->declare_parameter("control.yaw_min", -0.9 );
         pitch_max_ = this->declare_parameter("control.pitch_max", 0.4);
@@ -48,7 +51,7 @@ public:
         vision_sub_ = this->create_subscription<vision_interface::msg::AutoAimVel>(
             "auto_aim", 10, std::bind(&DodgebotVehicle::vision_callback, this, std::placeholders::_1));
         io_sub_ = this->create_subscription<operation_interface::msg::IoInfo>(
-            "io_info", 10, std::bind(&DodgebotVehicle::io_callback, this, std::placeholders::_1));
+            "dodgebot_io", 10, std::bind(&DodgebotVehicle::io_callback, this, std::placeholders::_1));
         timer_ = this->create_wall_timer(
             std::chrono::milliseconds(PUB_RATE), [this](){
                 timer_callback();
@@ -60,7 +63,9 @@ public:
 
         times_hit_ = 0;
         prev_armor_button_ = false;
-        dodgebot_alive_ = true;
+        dodgebot_alive_ = false;
+        difficulty_hard_ = false;
+        game_state_ = INIT;
 
         RCLCPP_INFO(this->get_logger(), "Dodgebot initialized.");
     }
@@ -98,15 +103,20 @@ private:
         
 
         // Read Game State
-        if (msg->sc == "up") {
+        std::string sc = msg->sc;
+        if(sc == "up"){
+            dodgebot_alive_ = false;
             game_state_ = INIT;
-        } else if (msg->sc == "mid") {
+        }else if(!(game_state_ == DEAD)  && sc == "mid"){
+            dodgebot_alive_ = true;
             game_state_ = EASY;
-        } else if (msg->sc == "down") {
+            max_hit_ = 1;
+        }else if(!(game_state_ == DEAD) && sc == "down"){
+            dodgebot_alive_ = true;
             game_state_ = HARD;
-        } else {
-            game_state_ = INIT;
+            max_hit_ = 2;
         }
+        
 
         if(robot_enable_){
             // Remote Shooter control
@@ -125,17 +135,23 @@ private:
                     fric_state_ = true;
                     feed_state_ = true;
                 }
-            }else{
-                if(msg->sa == "up") {
+            }else{   // Vision Shoot Control
+                if(dodgebot_alive_){
+                    if(msg->sa == "up") {
+                        fric_state_ = false;
+                        feed_state_ = false;
+                    }else if(msg->sb == "mid"){
+                        fric_state_ = true;
+                        feed_state_ = false;
+                    }else if(msg->sb == "down"){
+                        fric_state_ = true;
+                        feed_state_ = true;
+                    }
+                }else{
                     fric_state_ = false;
                     feed_state_ = false;
-                }else if(msg->sb == "mid"){
-                    fric_state_ = true;
-                    feed_state_ = false;
-                }else if(msg->sb == "down"){
-                    fric_state_ = true;
-                    feed_state_ = true;
                 }
+                
             }
             
             // Remote Yaw and pitch control
@@ -151,7 +167,7 @@ private:
     }
 
     void vision_callback(const vision_interface::msg::AutoAimVel::SharedPtr msg) {
-        if(vision_enable_){
+        if(vision_enable_ && dodgebot_alive_){
             yaw_ = msg->v_yaw;
             pitch_ = pitch_ + 0.05 * msg->v_pitch;
         }
@@ -163,14 +179,15 @@ private:
             if (times_hit_ >= max_hit_){
                 dodgebot_alive_ = false;
                 times_hit_ = 0;
+                game_state_ = DEAD;
             }
         }
         prev_armor_button_ = msg->armor_button;
     }
 
-    double yaw_, pitch_;
+    double yaw_init_, pitch_init_, yaw_, pitch_;
     double yaw_max_, yaw_min_, pitch_max_, pitch_min_;
-    bool robot_enable_, remote_enable_, vision_enable_, fric_state_, feed_state_;
+    bool robot_enable_, remote_enable_, vision_enable_, fric_state_, feed_state_, difficulty_hard_;
     GameState game_state_;
     double feed_speed_;
     int times_hit_; bool prev_armor_button_;

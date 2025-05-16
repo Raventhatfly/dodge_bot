@@ -153,6 +153,15 @@ def generate_launch_description():
         executable="irmv_detector",
         name="irmv_detector",
         output="both",
+        # emulate_tty=True
+    )
+
+    io_control = Node(
+        package="dodgebot_io",
+        executable="io_control",
+        name="io_control",
+        output="both",
+        parameters=[robot_config],
         emulate_tty=True
     )
 
@@ -182,7 +191,7 @@ def generate_launch_description():
         # dbus_vehicle,
         wfly_node,
         dodgebot_vehicle,
-        # ahrs_launch,
+        io_control,
         irmv_detection,
         # pos_interpreter,
     ])
